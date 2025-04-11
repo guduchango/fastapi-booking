@@ -15,6 +15,9 @@ def create_guest(db: Session, guest: schemas.GuestCreate):
 def get_guests(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Guest).offset(skip).limit(limit).all()
 
+def get_guest(db: Session, guest_id: int):
+    return db.query(models.Guest).filter(models.Guest.id == guest_id).first()
+
 # Unit CRUD operations
 def create_unit(db: Session, unit: schemas.UnitCreate):
     db_unit = models.Unit(**unit.model_dump())
@@ -26,13 +29,17 @@ def create_unit(db: Session, unit: schemas.UnitCreate):
 def get_units(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Unit).offset(skip).limit(limit).all()
 
+def get_unit(db: Session, unit_id: int):
+    return db.query(models.Unit).filter(models.Unit.id == unit_id).first()
+
 # Reservation CRUD operations
 def has_overlapping_reservation(db: Session, unit_id: int, check_in: date, check_out: date, exclude_reservation_id: Optional[int] = None):
     query = db.query(models.Reservation).filter(
         models.Reservation.unit_id == unit_id,
         models.Reservation.status == "active",
-        models.Reservation.check_in_date < check_out,
-        models.Reservation.check_out_date > check_in
+        # Check for any overlap in the date ranges
+        models.Reservation.check_in_date <= check_out,
+        models.Reservation.check_out_date >= check_in
     )
     
     if exclude_reservation_id:

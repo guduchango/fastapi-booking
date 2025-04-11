@@ -1,0 +1,101 @@
+{
+    "rules": {
+        "python": {
+            "imports": {
+                "order": ["standard_library", "third_party", "local"],
+                "groups": {
+                    "standard_library": ["^[a-z]"],
+                    "third_party": ["^fastapi", "^sqlalchemy", "^pydantic", "^pytest", "^asyncpg", "^aiomysql"],
+                    "local": ["^app"]
+                }
+            },
+            "formatting": {
+                "max_line_length": 88,
+                "indent_size": 4,
+                "use_tabs": false
+            },
+            "linting": {
+                "ignore": [
+                    "E501",
+                    "W503"
+                ]
+            },
+            "conventions": {
+                "file_structure": {
+                    "routers": "routers/*_routes.py",
+                    "models": "models/*.py",
+                    "schemas": "schemas/*.py",
+                    "utils": "utils/*.py",
+                    "static": "static/*",
+                    "types": "types/*.py"
+                },
+                "naming": {
+                    "directories": "lowercase_with_underscores",
+                    "files": "lowercase_with_underscores",
+                    "variables": "descriptive_with_auxiliary_verbs"
+                },
+                "functions": {
+                    "pure_functions": "def",
+                    "async_operations": "async def",
+                    "type_hints": "required",
+                    "error_handling": "early_returns",
+                    "guard_clauses": "required"
+                }
+            }
+        },
+        "fastapi": {
+            "dependencies": {
+                "required": [
+                    "fastapi",
+                    "pydantic>=2.0.0",
+                    "sqlalchemy>=2.0.0",
+                    "asyncpg",
+                    "aiomysql"
+                ]
+            },
+            "conventions": {
+                "route_definitions": {
+                    "use_functional_components": true,
+                    "clear_return_type_annotations": true,
+                    "use_pydantic_models": true
+                },
+                "error_handling": {
+                    "use_httpexception": true,
+                    "custom_error_types": true,
+                    "error_logging": true
+                },
+                "performance": {
+                    "minimize_blocking_io": true,
+                    "use_caching": true,
+                    "optimize_serialization": true,
+                    "lazy_loading": true
+                },
+                "middleware": {
+                    "logging": true,
+                    "error_monitoring": true,
+                    "performance_optimization": true
+                }
+            }
+        },
+        "git": {
+            "commit": {
+                "message": {
+                    "format": "^(feat|fix|docs|style|refactor|test|chore): .+",
+                    "max_length": 72
+                }
+            }
+        },
+        "docker": {
+            "compose": {
+                "services": {
+                    "api": {
+                        "ports": ["8000:8000"],
+                        "environment": {
+                            "DATABASE_URL": "postgresql://admin:admin@postgres:5432/reservations"
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 

@@ -74,15 +74,23 @@ def test_update_reservation(client, sample_reservation_data):
 
 def test_overlapping_reservation(client, sample_reservation_data):
     # Primero creamos una reserva
-    client.post("/api/v1/reservations/", json=sample_reservation_data)
+    response = client.post("/api/v1/reservations/", json=sample_reservation_data)
+    assert response.status_code == 200, f"Failed to create first reservation: {response.json()}"
+    
+    # Verificamos que la reserva se creó correctamente
+    data = response.json()
+    assert data["guest_id"] == sample_reservation_data["guest_id"]
+    assert data["unit_id"] == sample_reservation_data["unit_id"]
+    assert data["check_in_date"] == sample_reservation_data["check_in_date"]
+    assert data["check_out_date"] == sample_reservation_data["check_out_date"]
     
     # Intentamos crear una reserva que se solapa
     overlapping_data = {
         "guest_id": sample_reservation_data["guest_id"],
         "unit_id": sample_reservation_data["unit_id"],
-        "check_in_date": "2024-04-03",  # Se solapa con la reserva anterior
-        "check_out_date": "2024-04-07"
+        "check_in_date": "2024-04-03",  # Se solapa con la reserva anterior (01-05)
+        "check_out_date": "2024-04-07"   # Se solapa con la reserva anterior (01-05)
     }
     response = client.post("/api/v1/reservations/", json=overlapping_data)
-    assert response.status_code == 400
+    assert response.status_code == 400, f"Expected 400 but got {response.status_code}: {response.json()}"
     assert "Unit is already reserved for these dates" in response.json()["detail"] 

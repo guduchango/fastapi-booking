@@ -1,96 +1,100 @@
-from faker import Faker
-from datetime import date, timedelta
-import random
 from sqlalchemy.orm import Session
-from app.database.database import SessionLocal
-from app.models import models
-from app.crud import crud
-from app.schemas import schemas
+from app.database.database import SessionLocal, engine
+from app.models.models import Guest, Unit, Reservation
+from faker import Faker
+import random
+from datetime import date, timedelta
 
-fake = Faker('en_US')  # Using English for data
+fake = Faker()
 
 def create_fake_guests(db: Session, count: int = 10):
-    guests = []
+    """Create fake guests."""
     for _ in range(count):
-        guest_data = schemas.GuestCreate(
+        guest = Guest(
             name=fake.name(),
             email=fake.email(),
             phone=fake.phone_number()
         )
-        guest = crud.create_guest(db=db, guest=guest_data)
-        guests.append(guest)
-    return guests
+        db.add(guest)
+    db.commit()
 
 def create_fake_units(db: Session, count: int = 5):
-    units = []
+    """Create fake units."""
     unit_types = [
-        ("Presidential Suite", "Luxury suite with sea view and jacuzzi", 2),
-        ("Executive Suite", "Suite with living room and panoramic view", 2),
-        ("Deluxe Room", "Spacious room with balcony", 2),
-        ("Standard Room", "Comfortable room with all amenities", 2),
-        ("Family Room", "Spacious room for 4 people", 4)
+        ("Presidential Suite", "Luxurious suite with ocean view", 4),
+        ("Executive Suite", "Modern suite with city view", 2),
+        ("Family Room", "Spacious room for families", 6),
+        ("Standard Room", "Comfortable room with basic amenities", 2),
+        ("Deluxe Room", "Upgraded room with premium amenities", 2)
     ]
     
-    for i in range(min(count, len(unit_types))):
-        name, description, capacity = unit_types[i]
-        unit_data = schemas.UnitCreate(
-            name=f"{name} {i+1}",
+    for name, description, capacity in unit_types:
+        unit = Unit(
+            name=name,
             description=description,
-            capacity=capacity
+            capacity=capacity,
+            is_available=True
         )
-        unit = crud.create_unit(db=db, unit=unit_data)
-        units.append(unit)
-    return units
+        db.add(unit)
+    db.commit()
 
-def create_fake_reservations(db: Session, guests: list, units: list, count: int = 15):
-    reservations = []
-    today = date.today()
+def create_fake_reservations(db: Session, count: int = 15):
+    """Create fake reservations."""
+    guests = db.query(Guest).all()
+    units = db.query(Unit).all()
     
     for _ in range(count):
-        # Select random guest and unit
         guest = random.choice(guests)
         unit = random.choice(units)
         
-        # Generate random dates
-        check_in = today + timedelta(days=random.randint(0, 30))
+        # Generate random dates within the next month
+        today = date.today()
+        check_in = today + timedelta(days=random.randint(1, 15))
         check_out = check_in + timedelta(days=random.randint(1, 7))
         
-        try:
-            reservation_data = schemas.ReservationCreate(
+        # Check for overlapping reservations
+        overlapping = db.query(Reservation).filter(
+            Reservation.unit_id == unit.id,
+            Reservation.check_in_date < check_out,
+            Reservation.check_out_date > check_in
+        ).first()
+        
+        if not overlapping:
+            reservation = Reservation(
                 guest_id=guest.id,
                 unit_id=unit.id,
                 check_in_date=check_in,
-                check_out_date=check_out
+                check_out_date=check_out,
+                status="active"
             )
-            reservation = crud.create_reservation(db=db, reservation=reservation_data)
-            reservations.append(reservation)
-        except ValueError:
-            # If there's a date conflict, try with other dates
-            continue
+            db.add(reservation)
     
-    return reservations
+    db.commit()
 
 def seed_database():
+    """Seed the database with initial data."""
     db = SessionLocal()
     try:
-        # Create test data
-        print("Creating guests...")
-        guests = create_fake_guests(db)
-        print(f"Created {len(guests)} guests")
+        # Create tables if they don't exist
+        from app.models.models import Base
+        Base.metadata.create_all(bind=engine)
         
-        print("Creating units...")
-        units = create_fake_units(db)
-        print(f"Created {len(units)} units")
+        # Check if we already have data
+        if db.query(Guest).count() == 0:
+            create_fake_guests(db)
+            print("Created fake guests")
         
-        print("Creating reservations...")
-        reservations = create_fake_reservations(db, guests, units)
-        print(f"Created {len(reservations)} reservations")
+        if db.query(Unit).count() == 0:
+            create_fake_units(db)
+            print("Created fake units")
         
-        db.commit()
-        print("Database populated successfully!")
+        if db.query(Reservation).count() == 0:
+            create_fake_reservations(db)
+            print("Created fake reservations")
+        
+        print("Database seeded successfully")
     except Exception as e:
-        db.rollback()
-        print(f"Error populating database: {str(e)}")
+        print(f"Error seeding database: {str(e)}")
     finally:
         db.close()
 

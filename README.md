@@ -1,20 +1,199 @@
-# Reservation System with FastAPI
+# Reservation System API
 
-This is a reservation system developed with FastAPI that handles guests, units, and reservations.
+A FastAPI-based reservation system with PostgreSQL, Redis, RabbitMQ, and monitoring tools.
 
-## Requirements
+## Features
 
-- Python 3.8+
-- Dependencies listed in `requirements.txt`
+- RESTful API for managing reservations, guests, and units
+- PostgreSQL database with SQLAlchemy ORM
+- Redis for caching and Celery broker
+- RabbitMQ for message queuing
+- Email notifications using Celery tasks
+- Monitoring with Prometheus and Grafana
+- Error tracking with Sentry
+- Distributed tracing with OpenTelemetry
+- Database management with pgAdmin
+- Email testing with Mailhog
 
-## Installation
+## Prerequisites
+
+- Docker and Docker Compose
+- Python 3.12 or higher
+- Git
+
+## Project Structure
+
+```
+.
+├── app/
+│   ├── api/              # API endpoints
+│   ├── crud/             # Database operations
+│   ├── database/         # Database configuration
+│   ├── email/            # Email service and templates
+│   ├── models/           # SQLAlchemy models
+│   ├── schemas/          # Pydantic models
+│   ├── seeds/            # Database seeding
+│   └── worker.py         # Celery worker configuration
+├── prometheus/           # Prometheus configuration
+├── docker-compose.yml    # Docker services configuration
+├── Dockerfile            # Application container
+├── Dockerfile.worker     # Celery worker container
+├── requirements.txt      # Python dependencies
+└── README.md            # This file
+```
+
+## Getting Started
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd <repository-name>
+```
+
+2. Build and start the services:
+```bash
+# Build the Docker images
+docker-compose build
+
+# Start all services
+docker-compose up -d
+```
+
+This will start the following services:
+- FastAPI application (http://localhost:8000)
+- PostgreSQL database (port 5432)
+- pgAdmin (http://localhost:5050)
+- Redis (port 6379)
+- RabbitMQ (http://localhost:15672)
+- Mailhog (http://localhost:8025)
+- Prometheus (http://localhost:9090)
+- Grafana (http://localhost:3000)
+- Sentry (http://localhost:9000)
+- Celery worker
+- Celery Flower (http://localhost:5555)
+
+3. Seed the database with initial data:
+```bash
+# Access the application container
+docker exec -it reservation-api /bin/bash
+
+# Inside the container, run the seeding script
+python -m app.seeds.seed_data
+
+# Exit the container
+exit
+```
+
+4. Set up the Python environment and install dependencies (for local development):
+```bash
+# Create a virtual environment
+python -m venv env
+
+# Activate the virtual environment
+# On Linux/Mac:
+source env/bin/activate
+# On Windows:
+# env\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+## Accessing the Application Container
+
+To access the application container and run Python commands:
+
+1. Find the container ID:
+```bash
+docker ps
+```
+
+2. Access the container:
+```bash
+docker exec -it <container_id> /bin/bash
+```
+
+3. Once inside the container, you can:
+   - Run Python commands:
+     ```bash
+     python
+     ```
+   - Run the application directly:
+     ```bash
+     uvicorn app.main:app --host 0.0.0.0 --port 8000
+     ```
+   - Run the Celery worker:
+     ```bash
+     celery -A app.worker worker --loglevel=info
+     ```
+   - Run database migrations:
+     ```bash
+     python -m alembic upgrade head
+     ```
+   - Run tests:
+     ```bash
+     pytest
+     ```
+
+4. To exit the container:
+```bash
+exit
+```
+
+## API Documentation
+
+Once the services are running, you can access:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+### Endpoints
+
+- `POST /api/v1/guests/` - Create a new guest
+- `GET /api/v1/guests/` - List all guests
+- `POST /api/v1/units/` - Create a new unit
+- `GET /api/v1/units/` - List all units
+- `POST /api/v1/reservations/` - Create a new reservation
+- `GET /api/v1/reservations/` - List all reservations
+- `PUT /api/v1/reservations/{reservation_id}` - Update a reservation
+
+## Monitoring and Management
+
+### Database Management
+- pgAdmin: http://localhost:5050
+  - Email: admin@admin.com
+  - Password: admin
+  - Server: postgres:5432
+  - Database: reservations
+  - Username: admin
+  - Password: admin
+
+### Email Testing
+- Mailhog: http://localhost:8025
+  - SMTP: localhost:1025
+
+### Message Queue
+- RabbitMQ Management: http://localhost:15672
+  - Username: admin
+  - Password: admin
+
+### Task Monitoring
+- Celery Flower: http://localhost:5555
+
+### Metrics and Monitoring
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
+  - Username: admin
+  - Password: admin
+
+### Error Tracking
+- Sentry: http://localhost:9000
+
+## Development
 
 1. Create a virtual environment:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Linux/Mac
-# or
-.\venv\Scripts\activate  # On Windows
+python -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
 ```
 
 2. Install dependencies:
@@ -22,85 +201,42 @@ source venv/bin/activate  # On Linux/Mac
 pip install -r requirements.txt
 ```
 
-3. Start the server:
+3. Run the application:
 ```bash
-python run.py run
+uvicorn app.main:app --reload
 ```
 
-## API Endpoints
-
-### Guests
-
-- `POST /api/v1/guests/` - Create a new guest
-- `GET /api/v1/guests/` - List all guests
-
-### Units
-
-- `POST /api/v1/units/` - Create a new unit
-- `GET /api/v1/units/` - List all units
-
-### Reservations
-
-- `POST /api/v1/reservations/` - Create a new reservation
-- `GET /api/v1/reservations/` - List all reservations
-- `PUT /api/v1/reservations/{reservation_id}` - Update a reservation
-
-## Validations
-
-The system includes the following validations:
-
-1. Cannot create reservations for non-existent units
-2. Cannot create reservations for non-existent guests
-3. Cannot create overlapping reservations for the same unit
-
-## Example Usage
-
-### Create a guest
-```json
-POST /api/v1/guests/
-{
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "1234567890"
-}
+4. Run the Celery worker:
+```bash
+celery -A app.worker worker --loglevel=info
 ```
-
-### Create a unit
-```json
-POST /api/v1/units/
-{
-    "name": "Suite 101",
-    "description": "Luxury suite with sea view",
-    "capacity": 2
-}
-```
-
-### Create a reservation
-```json
-POST /api/v1/reservations/
-{
-    "guest_id": 1,
-    "unit_id": 1,
-    "check_in_date": "2024-04-15",
-    "check_out_date": "2024-04-20"
-}
-```
-
-## API Documentation
-
-Interactive API documentation is available at:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
 
 ## Testing
 
-To run the tests:
+Run the test suite:
 ```bash
 pytest
 ```
 
-## Populating the Database
+## Environment Variables
 
-To populate the database with sample data:
-```bash
-python run.py seed 
+The following environment variables can be configured:
+
+- `DATABASE_URL`: PostgreSQL connection string
+- `CELERY_BROKER_URL`: RabbitMQ connection string
+- `CELERY_RESULT_BACKEND`: Redis connection string
+- `SMTP_HOST`: Mailhog host
+- `SMTP_PORT`: Mailhog port
+- `FROM_EMAIL`: Sender email address
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

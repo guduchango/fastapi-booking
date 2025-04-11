@@ -76,8 +76,8 @@ def test_overlapping_reservation(db_session, sample_reservation_data):
     overlapping_data = schemas.ReservationCreate(
         guest_id=sample_reservation_data["guest_id"],
         unit_id=sample_reservation_data["unit_id"],
-        check_in_date=date(2024, 4, 3),  # Se solapa con la reserva anterior
-        check_out_date=date(2024, 4, 7)
+        check_in_date=date(2024, 4, 3),  # Se solapa con la reserva anterior (01-05)
+        check_out_date=date(2024, 4, 7)   # Se solapa con la reserva anterior (01-05)
     )
     
     with pytest.raises(ValueError) as exc_info:
