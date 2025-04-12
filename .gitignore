@@ -27,6 +27,14 @@ htmlcov/
 .nox/
 .hypothesis/
 
+# Python bytecode
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+**/*.so
+
 # Virtual Environment
 venv/
 env/
