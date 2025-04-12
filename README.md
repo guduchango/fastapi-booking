@@ -50,12 +50,17 @@ git clone <repository-url>
 cd <repository-name>
 ```
 
-2. Build and start the services:
+2. Set up environment variables:
 ```bash
-# Build the Docker images
-docker-compose build
+# Copy the example environment file
+cp .env.example .env
 
-# Start all services
+# Edit the .env file with your desired values
+# Make sure to use secure passwords for production use
+```
+
+3. Build and start the services:
+```bash
 docker-compose up -d
 ```
 

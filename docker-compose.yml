@@ -193,6 +193,27 @@ services:
     networks:
       - app-network
 
+  # Setup test database
+  setup_test_db:
+    container_name: reservation-setup-test-db
+    image: postgres:15-alpine
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    command: >
+      bash -c "
+        echo 'Waiting for PostgreSQL to be ready...';
+        while ! pg_isready -h postgres -p 5432 -U ${POSTGRES_USER}; do
+          sleep 1;
+        done;
+        echo 'Creating test database...';
+        psql -h postgres -U ${POSTGRES_USER} -d postgres -c 'CREATE DATABASE reservations_test;';
+        echo 'Test database setup complete!';
+      "
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
 volumes:
   redis_data:
   prometheus_data:

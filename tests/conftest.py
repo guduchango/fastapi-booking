@@ -11,7 +11,7 @@ from app.models.models import Guest, Unit, Reservation
 from datetime import datetime, timedelta
 
 # Use test database
-SQLALCHEMY_DATABASE_URL = "postgresql://admin:admin@postgres:5432/reservations_test"
+SQLALCHEMY_DATABASE_URL = "postgresql://admin:admin123@postgres:5432/reservations_test"
 
 # Create test engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
