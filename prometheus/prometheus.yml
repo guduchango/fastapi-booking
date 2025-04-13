@@ -14,7 +14,15 @@ scrape_configs:
   - job_name: 'fastapi'
     static_configs:
       - targets: ['app:8000']
+    metrics_path: '/metrics'
+    scheme: 'http'
 
   - job_name: 'celery'
     static_configs:
-      - targets: ['celery_worker:8000'] 
+      - targets: ['celery_worker:8000']
+
+  - job_name: 'locust'
+    static_configs:
+      - targets: ['locust:8089']
+    metrics_path: '/metrics'
+    scheme: 'http' 

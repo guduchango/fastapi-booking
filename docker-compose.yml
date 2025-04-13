@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # Redis for caching and Celery broker
   redis:
@@ -43,9 +45,10 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
-      - GF_USERS_ALLOW_SIGN_UP=${GF_USERS_ALLOW_SIGN_UP}
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
     depends_on:
       - prometheus
     networks:
@@ -54,17 +57,24 @@ services:
   # PostgreSQL database
   postgres:
     container_name: reservation-postgres
-    image: postgres:15-alpine
+    image: postgres:15
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=reservations
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d reservations"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # pgAdmin for database management
   pgadmin:
@@ -83,28 +93,18 @@ services:
   # FastAPI application
   app:
     container_name: reservation-api
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     ports:
       - "8000:8000"
-      - "8001:8001"  # Metrics port
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - FROM_EMAIL=${FROM_EMAIL}
-      - METRICS_PORT=8001
-    volumes:
-      - .:/app  # Mount the current directory to /app in the container
+      - DATABASE_URL=postgresql+psycopg2://admin:admin@postgres:5432/reservations
     depends_on:
       - postgres
-      - redis
-      - rabbitmq
     networks:
       - app-network
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # Celery worker
   celery_worker:
@@ -113,11 +113,11 @@ services:
       context: .
       dockerfile: Dockerfile.worker
     environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - FROM_EMAIL=${FROM_EMAIL}
+      - CELERY_BROKER_URL=amqp://admin:admin@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - FROM_EMAIL=noreply@example.com
     depends_on:
       - redis
       - rabbitmq
@@ -134,8 +134,8 @@ services:
     ports:
       - "5555:5555"
     environment:
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - CELERY_BROKER_URL=amqp://admin:admin@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - redis
       - celery_worker
@@ -186,8 +186,8 @@ services:
       - "5672:5672"   # AMQP
       - "15672:15672" # Management UI
     environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -198,19 +198,48 @@ services:
     container_name: reservation-setup-test-db
     image: postgres:15-alpine
     environment:
-      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGPASSWORD=admin
+      - PGUSER=admin
     command: >
       bash -c "
         echo 'Waiting for PostgreSQL to be ready...';
-        while ! pg_isready -h postgres -p 5432 -U ${POSTGRES_USER}; do
+        while ! pg_isready -h postgres -p 5432 -U admin; do
           sleep 1;
         done;
         echo 'Creating test database...';
-        psql -h postgres -U ${POSTGRES_USER} -d postgres -c 'CREATE DATABASE reservations_test;';
+        psql -h postgres -U admin -d postgres -c 'CREATE DATABASE reservations_test;';
         echo 'Test database setup complete!';
       "
     depends_on:
       - postgres
+    networks:
+      - app-network
+
+  # Locust for performance testing
+  locust:
+    container_name: reservation-locust
+    image: locustio/locust:latest
+    ports:
+      - "8089:8089"  # Web UI
+      - "5557:5557"  # Master
+      - "5558:5558"  # Worker
+    volumes:
+      - ./tests/performance:/locust
+    command: -f /locust/locustfile.py --host=http://app:8000 --master
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+  # Locust worker for distributed testing
+  locust-worker:
+    container_name: reservation-locust-worker
+    image: locustio/locust:latest
+    volumes:
+      - ./tests/performance:/locust
+    command: -f /locust/locustfile.py --host=http://app:8000 --worker --master-host=locust
+    depends_on:
+      - locust
     networks:
       - app-network
 

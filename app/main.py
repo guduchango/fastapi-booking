@@ -4,8 +4,11 @@ from app.api.endpoints import router
 from app.database.database import engine, Base
 from app.email.email_service import EmailService
 from app.worker import celery_app
-from app.metrics import metrics_middleware, start_metrics_server
+from app.metrics import metrics_middleware
 import os
+from prometheus_client import make_asgi_app
+from fastapi.responses import PlainTextResponse
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Create database tables
 try:
@@ -30,18 +33,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add metrics middleware
+# Agregar middleware de métricas
 app.middleware("http")(metrics_middleware)
+
+# Agregar endpoint de métricas
+@app.get("/metrics", response_class=PlainTextResponse)
+async def metrics():
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 # Include API routes
 app.include_router(router, prefix="/api/v1")
 
 # Initialize email service
 email_service = EmailService()
-
-# Start metrics server only if not in test mode
-if not os.getenv("TESTING"):
-    start_metrics_server(port=int(os.getenv("METRICS_PORT", "8001")))
 
 @app.get("/")
 async def root():
