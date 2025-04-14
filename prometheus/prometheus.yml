@@ -13,16 +13,23 @@ scrape_configs:
 
   - job_name: 'fastapi'
     static_configs:
-      - targets: ['app:8000']
+      - targets: ['reservation-api:8000']
     metrics_path: '/metrics'
     scheme: 'http'
+    scrape_interval: 5s
 
   - job_name: 'celery'
     static_configs:
-      - targets: ['celery_worker:8000']
+      - targets: ['reservation-celery-worker:8000']
+    metrics_path: '/metrics'
+    scheme: 'http'
 
-  - job_name: 'locust'
+  - job_name: 'locust-master'
     static_configs:
-      - targets: ['locust:8089']
+      - targets: ['reservation-locust:8001']
+
+  - job_name: 'locust-worker'
+    static_configs:
+      - targets: ['reservation-locust-worker:8001']
     metrics_path: '/metrics'
     scheme: 'http' 

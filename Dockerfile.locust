@@ -1,0 +1,14 @@
+FROM locustio/locust:latest
+
+USER root
+
+# Crear directorio para logs
+RUN mkdir -p /locust/logs
+
+# Establecer permisos
+RUN chown 777 -R /locust/logs
+
+USER locust
+
+WORKDIR /locust
+

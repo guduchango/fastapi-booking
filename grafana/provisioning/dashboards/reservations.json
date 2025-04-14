@@ -55,10 +55,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -90,12 +86,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "rate(http_request_duration_seconds_sum{job=\"fastapi\"}[5m]) / rate(http_request_duration_seconds_count{job=\"fastapi\"}[5m])",
-          "legendFormat": "{{method}} {{route}}",
+          "expr": "sum by (endpoint, method) (reservation_api_requests_total)",
+          "legendFormat": "{{endpoint}} ({{method}})",
           "refId": "A"
         }
       ],
-      "title": "Request Duration",
+      "title": "Total de Solicitudes por Endpoint",
       "type": "timeseries"
     },
     {
@@ -111,19 +107,19 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
+            "axisLabel": "Seconds",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 20,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
@@ -145,13 +141,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -164,8 +157,8 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -180,12 +173,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "rate(http_requests_total{job=\"fastapi\"}[5m])",
-          "legendFormat": "{{method}} {{route}}",
+          "expr": "rate(reservation_api_request_latency_seconds_sum[1m]) / rate(reservation_api_request_latency_seconds_count[1m])",
+          "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
       ],
-      "title": "Request Rate",
+      "title": "Latencia Promedio por Endpoint",
       "type": "timeseries"
     },
     {
@@ -207,11 +200,16 @@
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 5
+              },
+              {
                 "color": "red",
-                "value": 80
+                "value": 10
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -243,12 +241,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "locust_users",
-          "legendFormat": "Users",
+          "expr": "reservation_db_connections",
+          "legendFormat": "Conexiones Activas",
           "refId": "A"
         }
       ],
-      "title": "Active Users",
+      "title": "Conexiones a Base de Datos",
       "type": "stat"
     },
     {
@@ -266,15 +264,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "blue",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -289,7 +284,7 @@
         "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto",
-        "orientation": "auto",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -306,12 +301,21 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "locust_fail_ratio",
-          "legendFormat": "Fail Ratio",
+          "expr": "sum(reservation_cache_hits_total)",
+          "legendFormat": "Cache Hits",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(reservation_cache_misses_total)",
+          "legendFormat": "Cache Misses",
+          "refId": "B"
         }
       ],
-      "title": "Fail Ratio",
+      "title": "Estadísticas de Cache",
       "type": "stat"
     }
   ],
@@ -323,7 +327,7 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},

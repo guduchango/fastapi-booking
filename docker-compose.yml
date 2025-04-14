@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Redis for caching and Celery broker
   redis:
@@ -57,7 +55,7 @@ services:
   # PostgreSQL database
   postgres:
     container_name: reservation-postgres
-    image: postgres:15
+    image: postgres:16-alpine
     ports:
       - "5432:5432"
     environment:
@@ -99,7 +97,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg2://admin:admin@postgres:5432/reservations
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - app-network
     volumes:
@@ -142,27 +141,6 @@ services:
     networks:
       - app-network
 
-  # Sentry for error tracking
-  sentry:
-    container_name: reservation-sentry
-    image: getsentry/sentry:latest
-    ports:
-      - "9000:9000"
-    environment:
-      - SENTRY_SECRET_KEY=${SENTRY_SECRET_KEY}
-      - SENTRY_POSTGRES_HOST=${SENTRY_POSTGRES_HOST}
-      - SENTRY_DB_USER=${SENTRY_DB_USER}
-      - SENTRY_DB_PASSWORD=${SENTRY_DB_PASSWORD}
-      - SENTRY_DB_NAME=${SENTRY_DB_NAME}
-      - SENTRY_REDIS_HOST=${SENTRY_REDIS_HOST}
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - sentry_data:/var/lib/sentry/files
-    networks:
-      - app-network
-
   # OpenTelemetry Collector
   otel-collector:
     container_name: reservation-otel-collector
@@ -193,53 +171,32 @@ services:
     networks:
       - app-network
 
-  # Setup test database
-  setup_test_db:
-    container_name: reservation-setup-test-db
-    image: postgres:15-alpine
-    environment:
-      - PGPASSWORD=admin
-      - PGUSER=admin
-    command: >
-      bash -c "
-        echo 'Waiting for PostgreSQL to be ready...';
-        while ! pg_isready -h postgres -p 5432 -U admin; do
-          sleep 1;
-        done;
-        echo 'Creating test database...';
-        psql -h postgres -U admin -d postgres -c 'CREATE DATABASE reservations_test;';
-        echo 'Test database setup complete!';
-      "
-    depends_on:
-      - postgres
-    networks:
-      - app-network
-
   # Locust for performance testing
   locust:
     container_name: reservation-locust
-    image: locustio/locust:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.locust
     ports:
       - "8089:8089"  # Web UI
-      - "5557:5557"  # Master
-      - "5558:5558"  # Worker
     volumes:
-      - ./tests/performance:/locust
-    command: -f /locust/locustfile.py --host=http://app:8000 --master
-    depends_on:
-      - app
+      - ./locust:/locust
     networks:
       - app-network
+    depends_on:
+      - app
 
-  # Locust worker for distributed testing
+  # Locust worker
   locust-worker:
     container_name: reservation-locust-worker
-    image: locustio/locust:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.locust
     volumes:
-      - ./tests/performance:/locust
-    command: -f /locust/locustfile.py --host=http://app:8000 --worker --master-host=locust
+      - ./locust:/locust
     depends_on:
       - locust
+      - app
     networks:
       - app-network
 

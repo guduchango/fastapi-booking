@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import date
 from app.models import models
 from app.schemas import schemas
+from app.email.email_service import EmailService
 
 # Guest CRUD operations
 def create_guest(db: Session, guest: schemas.GuestCreate):
@@ -109,4 +110,33 @@ def update_reservation(db: Session, reservation_id: int, reservation_update: sch
     
     db.commit()
     db.refresh(db_reservation)
+    return db_reservation
+
+def cancel_reservation(db: Session, reservation_id: int):
+    db_reservation = db.query(models.Reservation).filter(models.Reservation.id == reservation_id).first()
+    if not db_reservation:
+        raise ValueError("Reservation not found")
+    
+    # Cambiar el estado de la reservación a "cancelada"
+    db_reservation.status = "cancelled"
+    
+    db.commit()
+    db.refresh(db_reservation)
+    
+    # Enviar correo de confirmación
+    email_service = EmailService()
+    context = {
+        "guest_name": db_reservation.guest.name,
+        "unit_name": db_reservation.unit.name,
+        "check_in_date": db_reservation.check_in_date,
+        "check_out_date": db_reservation.check_out_date,
+        "reservation_id": db_reservation.id
+    }
+    email_service.send_email(
+        to_email=db_reservation.guest.email,
+        subject="Reservation Cancelled",
+        template_name="reservation_cancellation",
+        context=context
+    )
+    
     return db_reservation 

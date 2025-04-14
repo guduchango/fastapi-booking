@@ -37,7 +37,7 @@ class ReservationBase(BaseModel):
 class ReservationCreate(ReservationBase):
     pass
 
-class ReservationUpdate(ReservationBase):
+class ReservationUpdate(BaseModel):
     guest_id: Optional[int] = None
     unit_id: Optional[int] = None
     check_in_date: Optional[date] = None

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -60,6 +60,21 @@ async def read_reservations(
     """Get a list of reservations."""
     try:
         return crud.get_reservations(db=db, skip=skip, limit=limit)
+    except Exception as e:
+        raise DatabaseError(str(e))
+
+@router.get("/{reservation_id}", response_model=schemas.ReservationResponse)
+@cached(ttl=60)
+async def read_reservation(
+    reservation_id: int,
+    db: Session = Depends(get_db)
+) -> schemas.ReservationResponse:
+    """Get a specific reservation by ID."""
+    try:
+        reservation = crud.get_reservation(db=db, reservation_id=reservation_id)
+        if not reservation:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+        return reservation
     except Exception as e:
         raise DatabaseError(str(e))
 

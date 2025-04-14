@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router
 from app.database.database import engine, Base
@@ -7,7 +7,7 @@ from app.worker import celery_app
 from app.metrics import metrics_middleware
 import os
 from prometheus_client import make_asgi_app
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Create database tables
@@ -49,4 +49,11 @@ email_service = EmailService()
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the Reservation System API"} 
+    return {"message": "Welcome to the Reservation System API"}
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "type": str(type(exc).__name__)},
+    ) 
